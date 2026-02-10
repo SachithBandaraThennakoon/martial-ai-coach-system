@@ -1,0 +1,64 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# =========================
+# Virtual Environments
+# =========================
+.venv/
+venv/
+env/
+
+# =========================
+# Environment Variables
+# =========================
+.env
+
+# =========================
+# Vector DB (Chroma)
+# =========================
+vector_db_store/
+chroma/
+
+# =========================
+# Persistent Memory / Databases
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+memory/sessions.db
+
+# =========================
+# Generated Proposals & Outputs
+# =========================
+proposals/
+outputs/
+*.md.pdf
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+
+
+node_modules/
+dist/

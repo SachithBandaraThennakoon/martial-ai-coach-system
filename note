@@ -1,1 +1,12 @@
 npm install @mediapipe/pose @mediapipe/camera_utils
+
+
+
+/////////////////////////////backend////////////////////////////////////////////////
+mkdir backend
+cd backend
+python -m venv venv
+venv\Scripts\activate   # Windows
+pip install fastapi uvicorn websockets pydantic numpy
+
+uvicorn main:app --reload
