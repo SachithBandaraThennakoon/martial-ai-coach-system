@@ -1,0 +1,30 @@
+{
+  "id": "front_kick",
+  "name": "Front Kick",
+  "steps": [
+    "STANCE",
+    "CHAMBER",
+    "EXTENSION",
+    "RECOIL",
+    "RECOVERY"
+  ],
+  "targets": {
+    "STANCE": {
+      "23": {"x":0.45,"y":0.7},
+      "24": {"x":0.55,"y":0.7}
+    },
+    "CHAMBER": {
+      "26": {"x":0.55,"y":0.55}
+    },
+    "EXTENSION": {
+      "28": {"x":0.6,"y":0.5}
+    },
+    "RECOIL": {
+      "26": {"x":0.55,"y":0.55}
+    },
+    "RECOVERY": {
+      "23": {"x":0.45,"y":0.7},
+      "24": {"x":0.55,"y":0.7}
+    }
+  }
+}

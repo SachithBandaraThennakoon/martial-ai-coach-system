@@ -1,46 +1,32 @@
-import type { FrontKickStep } from "../techniques/frontKick/steps";
-
 export default function StepFlow({
   steps,
   currentStep,
 }: {
-  steps: FrontKickStep[];
-  currentStep: FrontKickStep;
+  steps?: string[];
+  currentStep?: string;
 }) {
+  if (!steps || steps.length === 0) {
+    return <div>No steps available</div>;
+  }
+
   return (
-    <div
-      style={{
-        padding: "16px",
-        color: "#fff",
-      }}
-    >
-      <h3 style={{ marginBottom: "12px" }}>Front Kick</h3>
-
-      {steps.map((step) => {
-        const isActive = step === currentStep;
-        const isDone =
-          steps.indexOf(step) < steps.indexOf(currentStep);
-
-        return (
-          <div
-            key={step}
-            style={{
-              padding: "10px",
-              marginBottom: "8px",
-              borderRadius: "6px",
-              background: isActive
+    <div style={{ padding: 12 }}>
+      {steps.map((step) => (
+        <div
+          key={step}
+          style={{
+            padding: 6,
+            marginBottom: 4,
+            background:
+              step === currentStep
                 ? "#2ecc71"
-                : isDone
-                ? "#555"
-                : "#222",
-              color: isActive ? "#000" : "#fff",
-              fontWeight: isActive ? "bold" : "normal",
-            }}
-          >
-            {isDone ? "✔ " : ""} {step}
-          </div>
-        );
-      })}
+                : "#333",
+            color: "#fff",
+          }}
+        >
+          {step}
+        </div>
+      ))}
     </div>
   );
 }

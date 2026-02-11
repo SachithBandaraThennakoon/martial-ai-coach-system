@@ -1,62 +1,79 @@
-import { useRef, useEffect } from "react";
-import { FRONT_KICK_TARGETS } from "../techniques/frontKick/targetPoses";
+import { useRef, useEffect, useState } from "react";
 
-type Landmark = {
-  x: number;
-  y: number;
-};
-
-const MATCH_THRESHOLD = 0.05;
+type Landmark = { x: number; y: number };
 
 export default function SkeletonRenderer({
   landmarks,
-  step,
+  setLandmarks,
+  simulation,
 }: {
-  landmarks: Landmark[] | null;
-  step: string;
+  landmarks: Landmark[];
+  setLandmarks: any;
+  simulation?: boolean;
+  step?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  const width = 640;
+  const height = 480;
 
   useEffect(() => {
-    if (!landmarks || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const ctx = canvasRef.current.getContext("2d")!;
-    ctx.clearRect(0, 0, 640, 480);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const target = FRONT_KICK_TARGETS[step];
+    ctx.clearRect(0, 0, width, height);
 
-    // 🟢 Draw target skeleton
-    if (target) {
-      Object.entries(target).forEach(([idx, pt]) => {
-        ctx.beginPath();
-        ctx.arc(pt.x * 640, pt.y * 480, 6, 0, Math.PI * 2);
-        ctx.fillStyle = "green";
-        ctx.globalAlpha = 0.6;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      });
-    }
-
-    // 🔴 Live skeleton
-    landmarks.forEach((pt, i) => {
-      let color = "red";
-
-      if (target && target[i]) {
-        const dx = pt.x - target[i].x;
-        const dy = pt.y - target[i].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < MATCH_THRESHOLD) {
-          color = "blue"; // 🔵 matched
-        }
-      }
-
+    landmarks.forEach((pt) => {
       ctx.beginPath();
-      ctx.arc(pt.x * 640, pt.y * 480, 5, 0, Math.PI * 2);
-      ctx.fillStyle = color;
+      ctx.arc(pt.x * width, pt.y * height, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "red";
       ctx.fill();
     });
-  }, [landmarks, step]);
+  }, [landmarks]);
 
-  return <canvas ref={canvasRef} width={640} height={480} />;
+  const handleMouseDown = (e: any) => {
+    if (!simulation) return;
+
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / width;
+    const my = (e.clientY - rect.top) / height;
+
+    landmarks.forEach((pt, i) => {
+      const dx = pt.x - mx;
+      const dy = pt.y - my;
+      if (Math.sqrt(dx * dx + dy * dy) < 0.04) {
+        setDragIndex(i);
+      }
+    });
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (dragIndex === null) return;
+
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / width;
+    const my = (e.clientY - rect.top) / height;
+
+    const updated = [...landmarks];
+    updated[dragIndex] = { x: mx, y: my };
+    setLandmarks(updated);
+  };
+
+  const handleMouseUp = () => setDragIndex(null);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      style={{ background: "#222" }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    />
+  );
 }

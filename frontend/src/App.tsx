@@ -1,100 +1,193 @@
-import { useRef, useState, useEffect } from "react";
-import CameraView from "./components/CameraView";
-import SkeletonRenderer from "./components/SkeletonRenderer";
+import { useEffect, useRef, useState } from "react";
+import CategorySelector from "./components/CategorySelector";
 import CoachingLayout from "./components/CoachingLayout";
 import FeedbackBar from "./components/FeedbackBar";
 import StepFlow from "./components/StepFlow";
-import { initPose } from "./pose/usePoseDetection";
-import {
-  FRONT_KICK_STEPS,
-  type FrontKickStep,
-} from "./techniques/frontKick/steps";
-import type { Results } from "@mediapipe/pose";
+import PoseSimulator from "./components/PoseSimulator";
 
-/* ---------- smoothing ---------- */
-const SMOOTHING = 0.7;
-let lastLandmarks: any[] | null = null;
-
-function smoothLandmarks(newLm: any[]) {
-  if (!lastLandmarks) {
-    lastLandmarks = newLm;
-    return newLm;
-  }
-
-  const smoothed = newLm.map((pt, i) => ({
-    x: SMOOTHING * lastLandmarks![i].x + (1 - SMOOTHING) * pt.x,
-    y: SMOOTHING * lastLandmarks![i].y + (1 - SMOOTHING) * pt.y,
-  }));
-
-  lastLandmarks = smoothed;
-  return smoothed;
-}
-/* -------------------------------- */
+type Technique = {
+  id: string;
+  name: string;
+  steps: string[];
+  targets: any;
+};
 
 export default function App() {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
-  const [landmarks, setLandmarks] = useState<any[] | null>(null);
-  const [currentStep, setCurrentStep] =
-    useState<FrontKickStep>("STANCE");
-  const [feedback, setFeedback] = useState(
-    "Stand relaxed prepare to move"
-  );
+  const [domains, setDomains] = useState<any[]>([]);
+  const [technique, setTechnique] =
+    useState<Technique | null>(null);
 
-  /* ---------- MediaPipe ---------- */
+  const [stepIndex, setStepIndex] = useState(0);
+  const [feedback, setFeedback] =
+    useState("Select a technique");
+  const [repCount, setRepCount] = useState(0);
+
+  /* ---------------- LOAD DOMAIN TREE ---------------- */
+
   useEffect(() => {
-    if (!videoRef.current) return;
-
-    initPose(videoRef.current, (results: Results) => {
-      if (results.poseLandmarks) {
-        const smooth = smoothLandmarks(results.poseLandmarks);
-        setLandmarks(smooth);
-
-        // send pose to backend
-        socketRef.current?.send(
-          JSON.stringify({ landmarks: smooth })
-        );
-      }
-    });
+    fetch("http://localhost:8000/domains")
+      .then((res) => res.json())
+      .then((data) => setDomains(data))
+      .catch(() =>
+        setFeedback("Failed to load categories")
+      );
   }, []);
-  /* ------------------------------- */
 
-  /* ---------- WebSocket ---------- */
+  /* ---------------- LOAD TECHNIQUE ---------------- */
+
+  const loadTechnique = (techId: string) => {
+    fetch(`http://localhost:8000/technique/${techId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setTechnique(data);
+        setStepIndex(0);
+        setRepCount(0);
+        setFeedback("Match green targets");
+      })
+      .catch(() =>
+        setFeedback("Failed to load technique")
+      );
+  };
+
+  /* ---------------- WEBSOCKET ---------------- */
+
   useEffect(() => {
+    if (!technique) return;
+
     const ws = new WebSocket("ws://localhost:8000/ws/pose");
-    socketRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket closed");
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket error", err);
+    };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      if (data.step) setCurrentStep(data.step);
-      if (data.feedback) setFeedback(data.feedback);
+      if (data.step && technique.steps) {
+        const index =
+          technique.steps.indexOf(data.step);
+        if (index !== -1) setStepIndex(index);
+      }
+
+      if (data.feedback) {
+        setFeedback(data.feedback);
+      }
+
+      if (data.completed_rep) {
+        setRepCount((r) => r + 1);
+      }
     };
 
-    return () => ws.close();
-  }, []);
-  /* ------------------------------- */
+    socketRef.current = ws;
+
+    return () => {
+      ws.close();
+    };
+  }, [technique]);
+
+  /* ---------------- CATEGORY VIEW ---------------- */
+
+  if (!technique) {
+    return (
+      <div
+        style={{
+          background: "#000",
+          color: "#fff",
+          minHeight: "100vh",
+          padding: 20,
+        }}
+      >
+        <h2>Select Training Path</h2>
+
+        <CategorySelector
+          tree={domains}
+          onSelectTechnique={loadTechnique}
+        />
+
+        <div style={{ marginTop: 20 }}>
+          {feedback}
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- SAFE GUARDS ---------------- */
+
+  if (!technique.steps || technique.steps.length === 0) {
+    return (
+      <div style={{ padding: 20 }}>
+        Technique has no steps defined.
+      </div>
+    );
+  }
+
+  const currentStep =
+    technique.steps[stepIndex] ?? "";
+
+  const progress =
+    ((stepIndex + 1) / technique.steps.length) *
+    100;
+
+  /* ---------------- COACHING VIEW ---------------- */
 
   return (
-    <>
-      <CameraView ref={videoRef} />
+    <CoachingLayout
+      feedback={
+        <>
+          <FeedbackBar message={feedback} />
+          <div style={{ height: 6, background: "#222" }}>
+            <div
+              style={{
+                width: `${progress}%`,
+                height: "100%",
+                background: "#2ecc71",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+        </>
+      }
+      skeleton={
+        <PoseSimulator
+          currentStep={currentStep}
+          targets={technique.targets}
+          onChange={(landmarks) => {
+            const socket = socketRef.current;
 
-      <CoachingLayout
-        feedback={<FeedbackBar message={feedback} />}
-        skeleton={
-          <SkeletonRenderer
-            landmarks={landmarks}
-            step={currentStep}
-          />
-        }
-        steps={
+            if (socket &&
+              socket.readyState === WebSocket.OPEN) {
+              socket.send(
+                JSON.stringify({
+                  landmarks,
+                  technique_id: technique.id,
+                })
+              );
+            }
+          } } onStepComplete={function (): void {
+            throw new Error("Function not implemented.");
+          } }        />
+      }
+      steps={
+        <div>
           <StepFlow
-            steps={FRONT_KICK_STEPS}
+            steps={technique.steps}
             currentStep={currentStep}
           />
-        }
-      />
-    </>
+          <div style={{ padding: 12 }}>
+            Repetitions: {repCount}
+          </div>
+        </div>
+      }
+    />
   );
 }

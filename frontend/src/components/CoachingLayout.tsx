@@ -8,37 +8,21 @@ export default function CoachingLayout({
   steps: React.ReactNode;
 }) {
   return (
-    <div style={{ height: "100vh", width: "100vw", background: "#000" }}>
-      {feedback}
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        background: "#000",
+        color: "#fff",
+      }}
+    >
+      <div style={{ flex: 3 }}>
+        {feedback}
+        {skeleton}
+      </div>
 
-      <div
-        style={{
-          display: "flex",
-          height: "calc(100vh - 50px)",
-        }}
-      >
-        {/* 75% Visual */}
-        <div
-          style={{
-            flex: 3,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          {skeleton}
-        </div>
-
-        {/* 25% Steps */}
-        <div
-          style={{
-            flex: 1,
-            borderLeft: "1px solid #333",
-            background: "#111",
-          }}
-        >
-          {steps}
-        </div>
+      <div style={{ flex: 1, background: "#111" }}>
+        {steps}
       </div>
     </div>
   );

@@ -1,0 +1,23 @@
+{
+  "id": "technical",
+  "name": "Technical Skills",
+  "children": [
+    {
+      "id": "striking",
+      "name": "Striking",
+      "children": [
+        {
+          "id": "kick",
+          "name": "Kick",
+          "children": [
+            {
+              "id": "front_kick",
+              "name": "Front Kick",
+              "technique_file": "front_kick.json"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -7,12 +7,40 @@ from engine.state_machine import FrontKickStateMachine
 from feedback.feedback_engine import select_feedback
 from safety.safety_checks import safety_override
 from ai.coach import generate_coaching_feedback
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For development only
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 state_machine = FrontKickStateMachine()
 
 MIN_FEEDBACK_INTERVAL = 0.5
 last_feedback_time = 0
+
+
+from knowledge_loader import load_technique
+
+@app.get("/technique/{tech_id}")
+def get_technique(tech_id: str):
+    return load_technique(tech_id)
+
+import json
+import os
+
+@app.get("/domains")
+def get_domains():
+    path = os.path.join("knowledge", "domains.json")
+    with open(path, "r") as f:
+        return json.load(f)
+
 
 
 @app.websocket("/ws/pose")
