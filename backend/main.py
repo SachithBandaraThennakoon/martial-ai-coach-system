@@ -22,8 +22,15 @@ app.add_middleware(
 
 state_machine = FrontKickStateMachine()
 
-MIN_FEEDBACK_INTERVAL = 0.5
+MIN_FEEDBACK_INTERVAL = 2.0
 last_feedback_time = 0
+last_sent_feedback = None
+
+ 
+
+from agents.orchestrator import AgentOrchestrator
+
+orchestrator = AgentOrchestrator()
 
 
 from knowledge_loader import load_technique
@@ -46,56 +53,72 @@ def get_domains():
 @app.websocket("/ws/pose")
 async def pose_ws(ws: WebSocket):
     await ws.accept()
-    global last_feedback_time
 
-    while True:
-        data = await ws.receive_json()
-        pose = PoseFrame(**data)
+    global last_feedback_time, last_sent_feedback
 
-        # basic pose validity
-        if len(pose.landmarks) < 10:
-            await ws.send_json({
-                "step": state_machine.current_step,
-                "feedback": "Hold position regain camera view"
-            })
-            continue
+    try:
+        while True:
+            data = await ws.receive_json()
 
-        # feature extraction
-        features = extract_front_kick_features(pose)
+            pose = PoseFrame(**data)
 
-        # safety override
-        safety = safety_override(state_machine.current_step, features)
-        if safety["override"]:
-            state_machine.current_step = "STANCE"
-            await ws.send_json({
-                "step": "STANCE",
-                "feedback": safety["message"]
-            })
-            continue
+            if len(pose.landmarks) < 10:
+                await ws.send_json({
+                    "feedback": "Hold position regain camera view"
+                })
+                continue
 
-        # rule evaluation
-        rule_result = evaluate_step(
-            state_machine.current_step,
-            features
-        )
+            features = extract_front_kick_features(pose)
 
-        # feedback filtering
-        feedback_context = select_feedback(
-            rule_result["violations"]
-        )
-
-        # step update
-        features["rule"] = rule_result
-        step = state_machine.update(features)
-
-        # throttling
-        now = time.time()
-        payload = {"step": step}
-
-        if now - last_feedback_time > MIN_FEEDBACK_INTERVAL:
-            payload["feedback"] = generate_coaching_feedback(
-                feedback_context
+            safety = safety_override(
+                state_machine.current_step,
+                features
             )
-            last_feedback_time = now
 
-        await ws.send_json(payload)
+            if safety["override"]:
+                await ws.send_json({
+                    "feedback": safety["message"]
+                })
+                continue
+
+            rule_result = evaluate_step(
+                state_machine.current_step,
+                features
+            )
+
+            features["rule"] = rule_result
+            state_machine.update(features)
+            
+            agent_output = await orchestrator.process(
+                features,
+                rule_result
+            )
+
+
+            now = time.time()
+            payload = {}
+
+            new_feedback = agent_output.get("feedback")
+
+            if (
+                new_feedback
+                and now - last_feedback_time > MIN_FEEDBACK_INTERVAL
+                and new_feedback != last_sent_feedback
+            ):
+                payload["feedback"] = new_feedback
+                last_feedback_time = now
+                last_sent_feedback = new_feedback
+
+            payload["progress"] = agent_output.get("progress")
+
+            try:
+                await ws.send_json(payload)
+            except:
+                print("Client disconnected during send.")
+                break
+
+    except Exception as e:
+        print("WebSocket error:", e)
+
+    finally:
+        print("WebSocket closed safely.")

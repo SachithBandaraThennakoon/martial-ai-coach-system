@@ -31,45 +31,44 @@ export default function App() {
 
   const [feedback, setFeedback] = useState("Match green targets");
 
-  useEffect(() => {
-    if (!technique) return;
+ useEffect(() => {
+  // Prevent duplicate sockets
+  if (socketRef.current) return;
 
-    const ws = new WebSocket(
-      "ws://localhost:8000/ws/pose"
-    );
+  const ws = new WebSocket("ws://localhost:8000/ws/pose");
 
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-    };
+  ws.onopen = () => {
+    console.log("WebSocket connected");
+  };
 
-    ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
 
-  if (data.feedback) {
-    setFeedback(data.feedback);
-  }
+    if (data.feedback) {
+      setFeedback((prev) =>
+        prev !== data.feedback ? data.feedback : prev
+      );
+    }
+  };
 
-  if (data.completed_rep) {
-    setRepCount((r) => r + 1);
-  }
-};
+  ws.onerror = (err) => {
+    console.error("WebSocket error", err);
+  };
 
+  ws.onclose = () => {
+    console.log("WebSocket closed");
+  };
 
-    ws.onerror = (err) => {
-      console.error("WebSocket error", err);
-    };
+  socketRef.current = ws;
 
-    ws.onclose = () => {
-      console.log("WebSocket closed");
-    };
-
-    socketRef.current = ws;
-
-    return () => {
-      ws.close();
-    };
-  }, [technique]);
-
+  return () => {
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+  };
+}, []);
+ // ← EMPTY dependency
 
 
 
