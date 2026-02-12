@@ -16,10 +16,14 @@ VIOLATION_TO_INTENT = {
 }
 
 
+import os
 from openai import OpenAI
+from dotenv import load_dotenv
 
+load_dotenv()
 
-client = OpenAI(api_key="")  # Replace with your OpenAI API key
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 def generate_coaching_feedback(feedback_context):
     focus = feedback_context["focus"]

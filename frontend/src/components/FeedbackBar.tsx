@@ -6,14 +6,9 @@ export default function FeedbackBar({
   return (
     <div
       style={{
-        height: "50px",
-        background: "#111",
-        color: "#fff",
-        display: "flex",
-        alignItems: "center",
-        paddingLeft: "16px",
-        fontSize: "18px",
+        fontSize: 18,
         fontWeight: 500,
+        letterSpacing: 0.5,
       }}
     >
       {message}

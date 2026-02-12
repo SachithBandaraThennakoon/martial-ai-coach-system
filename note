@@ -8,5 +8,6 @@ cd backend
 python -m venv venv
 venv\Scripts\activate   # Windows
 pip install fastapi uvicorn websockets pydantic numpy
+pip install python-dotenv
 
 uvicorn main:app --reload

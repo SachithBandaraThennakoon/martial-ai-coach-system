@@ -9,14 +9,14 @@ type Targets = {
 };
 
 const MAIN_POINTS = [
-  11, 12, 23, 24, 25, 26, 27, 28
+  11, 12, 23, 24, 25, 26, 27, 28,
 ];
 
 const BONES: [number, number][] = [
   [11, 12],
-  [23, 24],
   [11, 23],
   [12, 24],
+  [23, 24],
   [23, 25],
   [25, 27],
   [24, 26],
@@ -39,27 +39,6 @@ function createDefaultPose(): Landmark[] {
   return pose;
 }
 
-function calculateKneeAngle(pose: Landmark[]) {
-  const hip = pose[24];
-  const knee = pose[26];
-  const ankle = pose[28];
-
-  const a = Math.atan2(
-    hip.y - knee.y,
-    hip.x - knee.x
-  );
-  const b = Math.atan2(
-    ankle.y - knee.y,
-    ankle.x - knee.x
-  );
-
-  let angle =
-    Math.abs((a - b) * (180 / Math.PI));
-  if (angle > 180) angle = 360 - angle;
-
-  return Math.round(angle);
-}
-
 export default function PoseSimulator({
   currentStep,
   targets,
@@ -71,7 +50,9 @@ export default function PoseSimulator({
   onChange: (landmarks: Landmark[]) => void;
   onStepComplete: () => void;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  /* ---------------- HOOKS ---------------- */
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [landmarks, setLandmarks] =
     useState<Landmark[]>(createDefaultPose());
@@ -82,84 +63,59 @@ export default function PoseSimulator({
   const [tolerance, setTolerance] =
     useState(0.05);
 
-  const [autoPlay, setAutoPlay] =
-    useState(false);
-
-  const [repCount, setRepCount] =
-    useState(0);
-
   const [stepLocked, setStepLocked] =
     useState(false);
 
-  /* ---------------- AUTO ANIMATION ---------------- */
-
-  useEffect(() => {
-    if (!autoPlay) return;
-
-    const interval = setInterval(() => {
-      const target =
-        targets?.[currentStep];
-
-      if (!target) return;
-
-      const updated = [...landmarks];
-
-      Object.entries(target).forEach(
-        ([idx, pt]) => {
-          const i = Number(idx);
-          updated[i] = {
-            x: pt.x,
-            y: pt.y,
-          };
-        }
-      );
-
-      setLandmarks(updated);
-    }, 800);
-
-    return () => clearInterval(interval);
-  }, [autoPlay, currentStep]);
-
-  /* ---------------- DRAW LOOP ---------------- */
+  /* ---------------- DRAW EFFECT ---------------- */
 
   useEffect(() => {
     draw();
     onChange(landmarks);
     checkCompletion();
-  }, [landmarks, currentStep, tolerance]);
+  }, [landmarks, currentStep]);
+
+  /* ---------------- STEP CHECK ---------------- */
 
   const checkCompletion = () => {
-    const target =
-      targets?.[currentStep];
-    if (!target || stepLocked) return;
+    if (!targets || !targets[currentStep]) return;
+    if (stepLocked) return;
 
-    const allMatched =
-      Object.entries(target).every(
-        ([idx, pt]) => {
-          const i = Number(idx);
-          const lm = landmarks[i];
-          if (!lm) return false;
+    const target = targets[currentStep];
 
-          const dx = lm.x - pt.x;
-          const dy = lm.y - pt.y;
+    const allMatched = Object.entries(
+      target
+    ).every(([idx, pt]) => {
+      const i = Number(idx);
+      const lm = landmarks[i];
+      if (!lm) return false;
 
-          return (
-            Math.sqrt(
-              dx * dx + dy * dy
-            ) < tolerance
-          );
-        }
+      const dx = lm.x - pt.x;
+      const dy = lm.y - pt.y;
+
+      return (
+        Math.sqrt(
+          dx * dx + dy * dy
+        ) < tolerance
       );
+    });
 
-    if (allMatched) {
-      setStepLocked(true);
+    if (allMatched && !stepLocked) {
+  setStepLocked(true);
 
-      setTimeout(() => {
-        onStepComplete();
-        setStepLocked(false);
-      }, 400);
-    }
+  setTimeout(() => {
+    onStepComplete();
+  }, 700);
+}
+
   };
+  
+
+  useEffect(() => {
+  setStepLocked(false);
+}, [currentStep]);
+
+
+  /* ---------------- DRAW ---------------- */
 
   const draw = () => {
     const canvas =
@@ -180,14 +136,16 @@ export default function PoseSimulator({
     const target =
       targets?.[currentStep];
 
-    /* ---- Draw Target ---- */
+    /* ---- Draw Target Points ---- */
     if (target) {
-      Object.entries(target).forEach(
-        ([_, pt]) => {
+      Object.values(target).forEach(
+        (pt) => {
           ctx.beginPath();
           ctx.arc(
-            pt.x * canvas.width,
-            pt.y * canvas.height,
+            pt.x *
+              canvas.width,
+            pt.y *
+              canvas.height,
             8,
             0,
             Math.PI * 2
@@ -226,7 +184,7 @@ export default function PoseSimulator({
       ctx.stroke();
     });
 
-    /* ---- Draw Points ---- */
+    /* ---- Draw Joints ---- */
     MAIN_POINTS.forEach((i) => {
       const pt =
         landmarks[i];
@@ -274,7 +232,7 @@ export default function PoseSimulator({
   /* ---------------- MOUSE CONTROL ---------------- */
 
   const handleMouseDown = (
-    e: any
+    e: React.MouseEvent
   ) => {
     const rect =
       canvasRef.current!.getBoundingClientRect();
@@ -283,6 +241,7 @@ export default function PoseSimulator({
       (e.clientX -
         rect.left) /
       rect.width;
+
     const my =
       (e.clientY -
         rect.top) /
@@ -307,7 +266,7 @@ export default function PoseSimulator({
   };
 
   const handleMouseMove = (
-    e: any
+    e: React.MouseEvent
   ) => {
     if (dragIndex === null)
       return;
@@ -319,6 +278,7 @@ export default function PoseSimulator({
       (e.clientX -
         rect.left) /
       rect.width;
+
     const my =
       (e.clientY -
         rect.top) /
@@ -337,19 +297,20 @@ export default function PoseSimulator({
   const handleMouseUp = () =>
     setDragIndex(null);
 
-  const kneeAngle =
-    calculateKneeAngle(
-      landmarks
-    );
+  /* ---------------- RENDER ---------------- */
 
   return (
     <div>
       <canvas
         ref={canvasRef}
-        width={1200}
-        height={720}
+        width={640}
+        height={480}
         style={{
-          background: "#111",
+          background:
+            "radial-gradient(circle, #141414, #000)",
+          borderRadius: 12,
+          boxShadow:
+            "0 0 25px rgba(46,204,113,0.3)",
         }}
         onMouseDown={
           handleMouseDown
@@ -362,16 +323,13 @@ export default function PoseSimulator({
         }
       />
 
-      {/* Debug Panel */}
       <div
         style={{
+          marginTop: 10,
           color: "#aaa",
-          marginTop: 8,
+          fontSize: 12,
         }}
       >
-        Knee Angle:{" "}
-        {kneeAngle}°
-        <br />
         Tolerance:
         <input
           type="range"
@@ -387,20 +345,6 @@ export default function PoseSimulator({
             )
           }
         />
-        <br />
-        <button
-          onClick={() =>
-            setAutoPlay(
-              !autoPlay
-            )
-          }
-        >
-          {autoPlay
-            ? "Stop Auto"
-            : "Auto Play"}
-        </button>
-        <br />
-        Reps: {repCount}
       </div>
     </div>
   );
