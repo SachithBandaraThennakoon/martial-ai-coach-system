@@ -1,4 +1,5 @@
 npm install @mediapipe/pose @mediapipe/camera_utils
+npm install recharts
 
 
 
@@ -11,3 +12,4 @@ pip install fastapi uvicorn websockets pydantic numpy
 pip install python-dotenv
 
 uvicorn main:app --reload
+pip install sqlalchemy

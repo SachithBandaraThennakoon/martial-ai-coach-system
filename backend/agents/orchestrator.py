@@ -4,6 +4,8 @@ from agents.coaching_agent import CoachingAgent
 from agents.reasoning_agent import ReasoningAgent
 from agents.progress_agent import ProgressAgent
 from agents.difficulty_agent import DifficultyAgent
+from agents.fatigue_agent import FatigueAgent
+from agents.training_plan_agent import TrainingPlanAgent
 
 from memory.session_memory import SessionMemory
 from memory.longterm_memory import LongTermMemory
@@ -18,62 +20,59 @@ class AgentOrchestrator:
         self.reasoning = ReasoningAgent()
         self.progress = ProgressAgent()
         self.difficulty = DifficultyAgent()
+        self.fatigue = FatigueAgent()
+        self.training_plan = TrainingPlanAgent()
 
         self.session_memory = SessionMemory()
         self.longterm_memory = LongTermMemory()
 
-    # IMPORTANT: async now
     async def process(self, features, rule_result):
 
-        # -------------------------
-        # Movement Analysis
-        # -------------------------
+        # 1️⃣ Movement analysis
         analysis = self.movement.analyze(
             features,
             rule_result
         )
 
-        # -------------------------
-        # Safety Check
-        # -------------------------
+        # 2️⃣ Safety check
         safety = self.safety.evaluate(features)
 
-        # -------------------------
-        # Update Short-Term Memory
-        # -------------------------
+        # 3️⃣ Update session memory
         self.session_memory.update(analysis)
 
-        # -------------------------
-        # Reasoning Decision
-        # -------------------------
+        # 4️⃣ Fatigue detection
+        fatigue = self.fatigue.detect(
+            self.session_memory
+        )
+
+        # 5️⃣ Decision logic
         decision = self.reasoning.decide(
             analysis,
             safety,
             self.session_memory
         )
 
-        # -------------------------
-        # Coaching (Async LLM)
-        # -------------------------
+        # 6️⃣ Coaching feedback (async LLM safe)
         feedback = await self.coaching.generate_feedback(
             decision,
             analysis,
             self.session_memory
         )
 
-        # -------------------------
-        # Rep Tracking
-        # -------------------------
+        # 7️⃣ Rep tracking
         if rule_result.get("completed_rep"):
             self.session_memory.increment_rep()
             self.longterm_memory.update_profile(
                 analysis
             )
 
-        # -------------------------
-        # Difficulty Adjustment
-        # -------------------------
+        # 8️⃣ Difficulty adjustment
         difficulty = self.difficulty.adjust(
+            self.longterm_memory
+        )
+
+        # 9️⃣ Training plan suggestion
+        plan = self.training_plan.suggest(
             self.longterm_memory
         )
 
@@ -82,5 +81,7 @@ class AgentOrchestrator:
             "analysis": analysis,
             "safety": safety,
             "difficulty": difficulty,
-            "progress": self.longterm_memory.user_profile
+            "fatigue": fatigue,
+            "progress": self.longterm_memory.user_profile,
+            "plan": plan
         }

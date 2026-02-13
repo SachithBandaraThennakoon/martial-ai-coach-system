@@ -8,6 +8,7 @@ export default function CoachingLayout({
   sidebar: React.ReactNode;
   center: React.ReactNode;
   progress: React.ReactNode;
+  
 }) {
   return (
     <div
@@ -21,7 +22,7 @@ export default function CoachingLayout({
       {/* LEFT */}
       <div
         style={{
-          width: "10%",
+          width: "15%",
           background: "#111",
           borderRight: "1px solid #222",
           padding: 10,
@@ -34,7 +35,7 @@ export default function CoachingLayout({
       {/* CENTER */}
       <div
         style={{
-          width: "80%",
+          width: "70%",
           padding: 20,
           display: "flex",
           flexDirection: "column",
@@ -48,7 +49,7 @@ export default function CoachingLayout({
       {/* RIGHT */}
       <div
         style={{
-          width: "10%",
+          width: "15%",
           background: "#111",
           borderLeft: "1px solid #222",
           padding: 10,

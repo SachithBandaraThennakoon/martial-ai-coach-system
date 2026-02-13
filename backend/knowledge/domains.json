@@ -2,7 +2,15 @@
   {
     "id": "physical",
     "name": "Physical Development",
-    "children": []
+    "children": [
+      { "id": "strength", "name": "Strength" },
+      { "id": "stamina", "name": "Stamina" },
+      { "id": "flexibility", "name": "Flexibility" },
+      { "id": "speed", "name": "Speed" },
+      { "id": "balance", "name": "Balance" },
+      { "id": "coordination", "name": "Coordination" },
+      { "id": "overall_fitness", "name": "Overall Fitness & Body Control" }
+    ]
   },
   {
     "id": "technical",
@@ -13,6 +21,17 @@
         "name": "Striking",
         "children": [
           {
+            "id": "punch",
+            "name": "Punch",
+            "children": [
+              {
+                "id": "basic_punch",
+                "name": "Basic Punch",
+                "technique_id": "basic_punch"
+              }
+            ]
+          },
+          {
             "id": "kick",
             "name": "Kick",
             "children": [
@@ -20,11 +39,121 @@
                 "id": "front_kick",
                 "name": "Front Kick",
                 "technique_id": "front_kick"
+              },
+              {
+                "id": "roundhouse_kick",
+                "name": "Roundhouse Kick",
+                "technique_id": "roundhouse_kick"
+              },
+              {
+                "id": "side_kick",
+                "name": "Side Kick",
+                "technique_id": "side_kick"
+              }
+            ]
+          },
+          {
+            "id": "elbow_knee",
+            "name": "Elbow & Knee",
+            "children": [
+              {
+                "id": "knee_strike",
+                "name": "Knee Strike",
+                "technique_id": "knee_strike"
               }
             ]
           }
         ]
+      },
+      {
+        "id": "grappling",
+        "name": "Grappling",
+        "children": [
+          {
+            "id": "takedown",
+            "name": "Takedown",
+            "children": [
+              {
+                "id": "basic_takedown",
+                "name": "Basic Takedown",
+                "technique_id": "basic_takedown"
+              }
+            ]
+          },
+          {
+            "id": "ground_control",
+            "name": "Ground Control",
+            "children": [
+              {
+                "id": "ground_hold",
+                "name": "Ground Hold",
+                "technique_id": "ground_hold"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "movement",
+        "name": "Movement, Timing & Positioning",
+        "children": [
+          {
+            "id": "footwork",
+            "name": "Footwork",
+            "technique_id": "footwork"
+          },
+          {
+            "id": "timing",
+            "name": "Timing",
+            "technique_id": "timing"
+          },
+          {
+            "id": "positioning",
+            "name": "Positioning",
+            "technique_id": "positioning"
+          }
+        ]
+      },
+      {
+        "id": "combat_application",
+        "name": "Practical Combat Skills",
+        "technique_id": "combat_application"
       }
+    ]
+  },
+  {
+    "id": "self_defense",
+    "name": "Self-Defense Ability",
+    "children": [
+      { "id": "situational_awareness", "name": "Situational Awareness" },
+      { "id": "personal_protection", "name": "Personal Protection Skills" },
+      { "id": "conflict_handling", "name": "Handling Real-Life Conflict Safely" }
+    ]
+  },
+  {
+    "id": "mental",
+    "name": "Mental Development",
+    "children": [
+      { "id": "focus", "name": "Focus & Concentration" },
+      { "id": "emotional_control", "name": "Emotional Control" },
+      { "id": "confidence", "name": "Confidence & Resilience" }
+    ]
+  },
+  {
+    "id": "character",
+    "name": "Character & Discipline",
+    "children": [
+      { "id": "respect", "name": "Respect & Humility" },
+      { "id": "patience", "name": "Patience & Perseverance" },
+      { "id": "responsibility", "name": "Responsibility & Self-Control" }
+    ]
+  },
+  {
+    "id": "competition",
+    "name": "Sport & Competition Outcomes",
+    "children": [
+      { "id": "tournament_performance", "name": "Tournament Performance" },
+      { "id": "competition_strategy", "name": "Strategy & Competitive Experience" }
     ]
   }
 ]
