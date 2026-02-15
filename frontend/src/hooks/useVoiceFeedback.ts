@@ -9,15 +9,15 @@ export default function useVoiceFeedback(
     const utterance =
       new SpeechSynthesisUtterance(text);
 
-    utterance.rate = 0.8; // slower
-    utterance.pitch = 0.8; // calmer
+    utterance.rate = 0.9; // slower
+    utterance.pitch = 0.9; // calmer
     utterance.volume = 1;
 
     const voices =
       speechSynthesis.getVoices();
 
     const calmVoice = voices.find((v) =>
-      v.name.toLowerCase().includes("female")
+      v.name.toLowerCase().includes("male")
     );
 
     if (calmVoice)

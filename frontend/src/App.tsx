@@ -220,18 +220,23 @@ useEffect(() => {
       center={
         <>
           <div
-            style={{
-              marginBottom: 40,
-              padding: 5,
-              background: "#111",
-              borderRadius: 8,
-              fontSize: 25,
-              color: "#2ecc71",
-              textAlign: "center",
-            }}
-          >
-            <SlowText text={feedback} />
-          </div>
+  style={{
+    marginBottom: 40,
+    padding: 5,
+    background: "#111",
+    borderRadius: 8,
+    fontSize: 25,
+    color: "#2ecc71",
+    textAlign: "center",
+    minHeight: 60, // reserve space
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  <SlowText text={feedback || " "} />
+</div>
+
 
           <button
             onClick={() =>
