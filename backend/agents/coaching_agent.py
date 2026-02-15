@@ -2,7 +2,14 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 
-client = OpenAI()
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_API_KEY)
+
 executor = ThreadPoolExecutor(max_workers=2)
 
 
@@ -33,7 +40,7 @@ class CoachingAgent:
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "Strict martial arts coach"},
-                    {"role": "user", "content": f"Short coaching cue for {violation}. Max 6 words."}
+                    {"role": "user", "content": f"You are a calm, disciplined martial arts master.Speak short. Speak grounded. Speak authoritative. Short coaching cue for {violation}. Max 6 words."}
                 ]
             )
             return response.choices[0].message.content

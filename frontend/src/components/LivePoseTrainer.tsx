@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Pose } from "@mediapipe/pose";
+import { Camera } from "@mediapipe/camera_utils";
 
 type Landmark = { x: number; y: number };
 
@@ -23,23 +25,7 @@ const BONES: [number, number][] = [
   [26, 28],
 ];
 
-function createDefaultPose(): Landmark[] {
-  const pose = Array.from({ length: 33 }, () => ({
-    x: 0.5,
-    y: 0.5,
-  }));
-
-  pose[23] = { x: 0.45, y: 0.7 };
-  pose[24] = { x: 0.55, y: 0.7 };
-  pose[25] = { x: 0.45, y: 0.85 };
-  pose[26] = { x: 0.55, y: 0.85 };
-  pose[11] = { x: 0.45, y: 0.5 };
-  pose[12] = { x: 0.55, y: 0.5 };
-
-  return pose;
-}
-
-export default function PoseSimulator({
+export default function LivePoseTrainer({
   currentStep,
   targets,
   onChange,
@@ -50,15 +36,12 @@ export default function PoseSimulator({
   onChange: (landmarks: Landmark[]) => void;
   onStepComplete: () => void;
 }) {
-  /* ---------------- HOOKS ---------------- */
 
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [landmarks, setLandmarks] =
-    useState<Landmark[]>(createDefaultPose());
-
-  const [dragIndex, setDragIndex] =
-    useState<number | null>(null);
+    useState<Landmark[]>([]);
 
   const [tolerance, setTolerance] =
     useState(0.05);
@@ -66,11 +49,70 @@ export default function PoseSimulator({
   const [stepLocked, setStepLocked] =
     useState(false);
 
+  const lastSentRef = useRef(0);
+
+  /* ---------------- MEDIAPIPE INIT ---------------- */
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    const pose = new Pose({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+    });
+
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.6,
+    });
+
+    pose.onResults((results) => {
+      if (!results.poseLandmarks) return;
+
+      const mapped = results.poseLandmarks.map(
+        (lm) => ({
+          x: lm.x,
+          y: lm.y,
+        })
+      );
+
+      setLandmarks(mapped);
+
+      // Throttle WebSocket (10 FPS)
+      const now = Date.now();
+      if (now - lastSentRef.current > 100) {
+        onChange(mapped);
+        lastSentRef.current = now;
+      }
+    });
+
+    const camera = new Camera(
+      videoRef.current,
+      {
+        onFrame: async () => {
+          await pose.send({
+            image: videoRef.current!,
+          });
+        },
+        width: 640,
+        height: 480,
+      }
+    );
+
+    camera.start();
+
+    return () => {
+      camera.stop();
+    };
+  }, []);
+
   /* ---------------- DRAW EFFECT ---------------- */
 
   useEffect(() => {
     draw();
-    onChange(landmarks);
     checkCompletion();
   }, [landmarks, currentStep]);
 
@@ -79,6 +121,7 @@ export default function PoseSimulator({
   const checkCompletion = () => {
     if (!targets || !targets[currentStep]) return;
     if (stepLocked) return;
+    if (!landmarks.length) return;
 
     const target = targets[currentStep];
 
@@ -99,31 +142,26 @@ export default function PoseSimulator({
       );
     });
 
-    if (allMatched && !stepLocked) {
-  setStepLocked(true);
+    if (allMatched) {
+      setStepLocked(true);
 
-  setTimeout(() => {
-    onStepComplete();
-  }, 700);
-}
-
+      setTimeout(() => {
+        onStepComplete();
+      }, 700);
+    }
   };
-  
 
   useEffect(() => {
-  setStepLocked(false);
-}, [currentStep]);
-
+    setStepLocked(false);
+  }, [currentStep]);
 
   /* ---------------- DRAW ---------------- */
 
   const draw = () => {
-    const canvas =
-      canvasRef.current;
-    if (!canvas) return;
+    const canvas = canvasRef.current;
+    if (!canvas || !landmarks.length) return;
 
-    const ctx =
-      canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     ctx.clearRect(
@@ -133,8 +171,7 @@ export default function PoseSimulator({
       canvas.height
     );
 
-    const target =
-      targets?.[currentStep];
+    const target = targets?.[currentStep];
 
     /* ---- Draw Target Points ---- */
     if (target) {
@@ -142,16 +179,13 @@ export default function PoseSimulator({
         (pt) => {
           ctx.beginPath();
           ctx.arc(
-            pt.x *
-              canvas.width,
-            pt.y *
-              canvas.height,
+            pt.x * canvas.width,
+            pt.y * canvas.height,
             8,
             0,
             Math.PI * 2
           );
-          ctx.fillStyle =
-            "green";
+          ctx.fillStyle = "green";
           ctx.fill();
         }
       );
@@ -159,54 +193,39 @@ export default function PoseSimulator({
 
     /* ---- Draw Bones ---- */
     BONES.forEach(([a, b]) => {
-      const p1 =
-        landmarks[a];
-      const p2 =
-        landmarks[b];
-
+      const p1 = landmarks[a];
+      const p2 = landmarks[b];
       if (!p1 || !p2) return;
 
       ctx.beginPath();
       ctx.moveTo(
-        p1.x *
-          canvas.width,
-        p1.y *
-          canvas.height
+        p1.x * canvas.width,
+        p1.y * canvas.height
       );
       ctx.lineTo(
-        p2.x *
-          canvas.width,
-        p2.y *
-          canvas.height
+        p2.x * canvas.width,
+        p2.y * canvas.height
       );
-      ctx.strokeStyle =
-        "white";
+      ctx.strokeStyle = "white";
       ctx.stroke();
     });
 
     /* ---- Draw Joints ---- */
     MAIN_POINTS.forEach((i) => {
-      const pt =
-        landmarks[i];
+      const pt = landmarks[i];
       if (!pt) return;
 
       let color = "red";
 
-      if (
-        target &&
-        target[i]
-      ) {
+      if (target && target[i]) {
         const dx =
-          pt.x -
-          target[i].x;
+          pt.x - target[i].x;
         const dy =
-          pt.y -
-          target[i].y;
+          pt.y - target[i].y;
 
         if (
           Math.sqrt(
-            dx * dx +
-              dy * dy
+            dx * dx + dy * dy
           ) < tolerance
         ) {
           color = "blue";
@@ -215,92 +234,25 @@ export default function PoseSimulator({
 
       ctx.beginPath();
       ctx.arc(
-        pt.x *
-          canvas.width,
-        pt.y *
-          canvas.height,
+        pt.x * canvas.width,
+        pt.y * canvas.height,
         6,
         0,
         Math.PI * 2
       );
-      ctx.fillStyle =
-        color;
+      ctx.fillStyle = color;
       ctx.fill();
     });
   };
 
-  /* ---------------- MOUSE CONTROL ---------------- */
-
-  const handleMouseDown = (
-    e: React.MouseEvent
-  ) => {
-    const rect =
-      canvasRef.current!.getBoundingClientRect();
-
-    const mx =
-      (e.clientX -
-        rect.left) /
-      rect.width;
-
-    const my =
-      (e.clientY -
-        rect.top) /
-      rect.height;
-
-    MAIN_POINTS.forEach(
-      (i) => {
-        const pt =
-          landmarks[i];
-        if (!pt) return;
-
-        if (
-          Math.hypot(
-            pt.x - mx,
-            pt.y - my
-          ) < 0.03
-        ) {
-          setDragIndex(i);
-        }
-      }
-    );
-  };
-
-  const handleMouseMove = (
-    e: React.MouseEvent
-  ) => {
-    if (dragIndex === null)
-      return;
-
-    const rect =
-      canvasRef.current!.getBoundingClientRect();
-
-    const mx =
-      (e.clientX -
-        rect.left) /
-      rect.width;
-
-    const my =
-      (e.clientY -
-        rect.top) /
-      rect.height;
-
-    const updated =
-      [...landmarks];
-    updated[dragIndex] = {
-      x: mx,
-      y: my,
-    };
-
-    setLandmarks(updated);
-  };
-
-  const handleMouseUp = () =>
-    setDragIndex(null);
-
-  /* ---------------- RENDER ---------------- */
-
   return (
     <div>
+      {/* Hidden video */}
+      <video
+        ref={videoRef}
+        style={{ display: "none" }}
+      />
+
       <canvas
         ref={canvasRef}
         width={1000}
@@ -312,15 +264,6 @@ export default function PoseSimulator({
           boxShadow:
             "0 0 25px rgba(46,204,113,0.3)",
         }}
-        onMouseDown={
-          handleMouseDown
-        }
-        onMouseMove={
-          handleMouseMove
-        }
-        onMouseUp={
-          handleMouseUp
-        }
       />
 
       <div
@@ -339,9 +282,7 @@ export default function PoseSimulator({
           value={tolerance}
           onChange={(e) =>
             setTolerance(
-              Number(
-                e.target.value
-              )
+              Number(e.target.value)
             )
           }
         />

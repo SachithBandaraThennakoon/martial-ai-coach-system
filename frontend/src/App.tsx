@@ -4,6 +4,8 @@ import CategoryTree from "./components/CategoryTree";
 import VerticalStepFlow from "./components/VerticalStepFlow";
 import PoseSimulator from "./components/PoseSimulator";
 import AgentDebugPanel from "./components/AgentDebugPanel";
+import SlowText from "./components/SlowText";
+import LivePoseTrainer from "./components/LivePoseTrainer";
 
 type Technique = {
   id: string;
@@ -12,8 +14,11 @@ type Technique = {
   targets: any;
 };
 
+
+
 export default function App() {
   const socketRef = useRef<WebSocket | null>(null);
+  const lastSentRef = useRef(0);
 
   const [domains, setDomains] = useState<any[]>([]);
   const [technique, setTechnique] =
@@ -31,24 +36,48 @@ export default function App() {
     useState<string>("maintain");
   const [fatigue, setFatigue] =
     useState<any>(null);
-
   const [plan, setPlan] = useState<string>("");
 
-  const [history, setHistory] =
-    useState<{ rep: number; score: number }[]>([]);
+  const [mode, setMode] =
+    useState<"sim" | "live">("sim");
 
-  // ---------------------------
-  // Load domains
-  // ---------------------------
+  const [audioUrl, setAudioUrl] =
+    useState("");
+
+  /* ---------------- Voice ---------------- */
+
+
+const audioRef = useRef<HTMLAudioElement | null>(null);
+
+useEffect(() => {
+  if (!audioUrl) return;
+
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+  }
+
+  const audio = new Audio(audioUrl);
+  audioRef.current = audio;
+
+  audio.play().catch(() => {
+    console.log("Audio autoplay blocked");
+  });
+
+}, [audioUrl]);
+
+
+
+  /* ---------------- Load Domains ---------------- */
+
   useEffect(() => {
     fetch("http://localhost:8000/domains")
       .then((res) => res.json())
       .then((data) => setDomains(data));
   }, []);
 
-  // ---------------------------
-  // WebSocket (ONE TIME ONLY)
-  // ---------------------------
+  /* ---------------- WebSocket ---------------- */
+
   useEffect(() => {
     if (socketRef.current) return;
 
@@ -86,16 +115,12 @@ export default function App() {
       if (data.plan)
         setPlan(data.plan);
 
-      if (data.progress?.average_score) {
-        setHistory((prev) => [
-          ...prev,
-          {
-            rep: prev.length + 1,
-            score:
-              data.progress.average_score,
-          },
-        ]);
-      }
+      if (data.audio) {
+  setAudioUrl(
+    `http://localhost:8000/${data.audio}?t=${Date.now()}`
+  );
+}
+
     };
 
     ws.onerror = (err) => {
@@ -114,9 +139,8 @@ export default function App() {
     };
   }, []);
 
-  // ---------------------------
-  // Load technique
-  // ---------------------------
+  /* ---------------- Load Technique ---------------- */
+
   const loadTechnique = (techId: string) => {
     fetch(
       `http://localhost:8000/technique/${techId}`
@@ -126,7 +150,6 @@ export default function App() {
         setTechnique(data);
         setStepIndex(0);
         setRepCount(0);
-        setHistory([]);
       });
   };
 
@@ -144,21 +167,27 @@ export default function App() {
     }
   };
 
+  /* ---------------- Safe Send (500ms throttle) ---------------- */
+
   const safeSocketSend = (landmarks: any[]) => {
     const socket = socketRef.current;
+    const now = Date.now();
 
-    if (
-      socket &&
-      socket.readyState === WebSocket.OPEN
-    ) {
-      socket.send(
-        JSON.stringify({
-          landmarks,
-          technique_id: technique?.id,
-        })
-      );
-    }
+    if (!socket) return;
+    if (now - lastSentRef.current < 500) return;
+    if (socket.readyState !== WebSocket.OPEN) return;
+
+    lastSentRef.current = now;
+
+    socket.send(
+      JSON.stringify({
+        landmarks,
+        technique_id: technique?.id,
+      })
+    );
   };
+
+  /* ---------------- Initial View ---------------- */
 
   if (!technique) {
     return (
@@ -178,6 +207,8 @@ export default function App() {
   const currentStep =
     technique.steps[stepIndex];
 
+  /* ---------------- Main UI ---------------- */
+
   return (
     <CoachingLayout
       sidebar={
@@ -190,26 +221,56 @@ export default function App() {
         <>
           <div
             style={{
-              marginBottom: 15,
-              padding: 10,
+              marginBottom: 40,
+              padding: 5,
               background: "#111",
               borderRadius: 8,
-              fontSize: 18,
+              fontSize: 25,
               color: "#2ecc71",
               textAlign: "center",
             }}
           >
-            {feedback}
+            <SlowText text={feedback} />
           </div>
 
-          <PoseSimulator
-            currentStep={currentStep}
-            targets={technique.targets}
-            onChange={safeSocketSend}
-            onStepComplete={
-              handleStepComplete
+          <button
+            onClick={() =>
+              setMode((m) =>
+                m === "sim"
+                  ? "live"
+                  : "sim"
+              )
             }
-          />
+            style={{
+              marginBottom: 10,
+              padding: 8,
+            }}
+          >
+            Switch to{" "}
+            {mode === "sim"
+              ? "Live"
+              : "Simulator"}
+          </button>
+
+          {mode === "sim" ? (
+            <PoseSimulator
+              currentStep={currentStep}
+              targets={technique.targets}
+              onChange={safeSocketSend}
+              onStepComplete={
+                handleStepComplete
+              }
+            />
+          ) : (
+            <LivePoseTrainer
+              currentStep={currentStep}
+              targets={technique.targets}
+              onChange={safeSocketSend}
+              onStepComplete={
+                handleStepComplete
+              }
+            />
+          )}
         </>
       }
       progress={

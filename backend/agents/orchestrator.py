@@ -10,6 +10,8 @@ from agents.training_plan_agent import TrainingPlanAgent
 from memory.session_memory import SessionMemory
 from memory.longterm_memory import LongTermMemory
 
+from ai.voice import generate_voice
+
 
 class AgentOrchestrator:
 
@@ -76,8 +78,16 @@ class AgentOrchestrator:
             self.longterm_memory
         )
 
+        audio_path = None
+
+        if feedback:
+            audio_path = generate_voice(feedback)
+
+        
+
         return {
             "feedback": feedback,
+            "audio": audio_path,
             "analysis": analysis,
             "safety": safety,
             "difficulty": difficulty,
