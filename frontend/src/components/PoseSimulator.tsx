@@ -35,6 +35,8 @@ function createDefaultPose(): Landmark[] {
   pose[26] = { x: 0.55, y: 0.85 };
   pose[11] = { x: 0.45, y: 0.5 };
   pose[12] = { x: 0.55, y: 0.5 };
+  pose[27] = { x: 0.45, y: 0.95 };
+  pose[28] = { x: 0.55, y: 0.95 };
 
   return pose;
 }

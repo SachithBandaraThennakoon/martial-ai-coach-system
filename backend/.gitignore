@@ -64,3 +64,5 @@ node_modules/
 dist/
 
 voice_*.mp3
+
+static/voice.mp3
