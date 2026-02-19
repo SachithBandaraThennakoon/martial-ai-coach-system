@@ -2,6 +2,7 @@ npm install @mediapipe/pose @mediapipe/camera_utils
 npm install recharts
 npm install @mediapipe/pose @mediapipe/camera_utils
 
+npm install @mediapipe/holistic
 
 
 /////////////////////////////backend////////////////////////////////////////////////
@@ -16,6 +17,8 @@ uvicorn main:app --reload
 pip install sqlalchemy
 
 uvicorn main:app --reload --ws-ping-interval 25 --ws-ping-timeout 60
+uvicorn main:app --reload --ws-ping-interval 30 --ws-ping-timeout 60
+
 
 pip install soundfile
 

@@ -13,6 +13,8 @@ from knowledge_loader import load_technique
 from ai.voice import generate_voice
 from techniques.registry import TECHNIQUE_REGISTRY
 
+import asyncio
+
 
 # --------------------------------------------------
 # App Setup
@@ -173,9 +175,25 @@ async def pose_ws(ws: WebSocket):
             ):
                 payload["feedback"] = new_feedback
 
-                # Generate calm warrior voice
-                audio_path = generate_voice(new_feedback)
+                # NON-BLOCKING voice
+                audio_path = await generate_voice_async(new_feedback)
                 payload["audio"] = audio_path
+
+                last_feedback_time = now
+                last_sent_feedback = new_feedback
+
+
+                # Generate calm warrior voice
+
+
+            async def generate_voice_async(text: str):
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(
+                    None,
+                    generate_voice,
+                    text
+                )
+
 
                 last_feedback_time = now
                 last_sent_feedback = new_feedback
