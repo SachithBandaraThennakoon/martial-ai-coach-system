@@ -1,13 +1,9 @@
 {
-  "id": "side_kick",
-  "name": "Side Kick",
+  "id": "roundhouse_kick",
+  "name": "Roundhouse Kick",
   "steps": [
     "STANCE",
-    "CHAMBER",
-    "PIVOT",
-    "EXTENSION",
-    "RECOIL",
-    "RECOVERY"
+    "CHAMBER"
   ],
   "targets": {
     "STANCE": {

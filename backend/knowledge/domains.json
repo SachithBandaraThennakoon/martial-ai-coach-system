@@ -25,9 +25,9 @@
             "name": "Punch",
             "children": [
               {
-                "id": "basic_punch",
-                "name": "Basic Punch",
-                "technique_id": "basic_punch"
+                "id": "fist",
+                "name": "fist",
+                "technique_id": "fist"
               }
             ]
           },

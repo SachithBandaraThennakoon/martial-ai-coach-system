@@ -7,14 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from models.pose import PoseFrame
-from features.front_kick_features import extract_front_kick_features
-from rules.front_kick_rules import evaluate_step
-from engine.state_machine import FrontKickStateMachine
 from safety.safety_checks import safety_override
-
 from agents.orchestrator import AgentOrchestrator
 from knowledge_loader import load_technique
 from ai.voice import generate_voice
+from techniques.registry import TECHNIQUE_REGISTRY
 
 
 # --------------------------------------------------
@@ -25,13 +22,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # dev only
+    allow_origins=["*"],  # Dev only
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Serve static voice file
+# Ensure static folder exists
 os.makedirs("static", exist_ok=True)
 
 app.mount(
@@ -44,12 +41,9 @@ app.mount(
 # Core System
 # --------------------------------------------------
 
-state_machine = FrontKickStateMachine()
 orchestrator = AgentOrchestrator()
 
 MIN_FEEDBACK_INTERVAL = 4.0  # seconds
-last_feedback_time = 0
-last_sent_feedback = None
 
 
 # --------------------------------------------------
@@ -69,26 +63,53 @@ def get_domains():
 
 
 # --------------------------------------------------
-# WebSocket
+# WebSocket Endpoint
 # --------------------------------------------------
 
 @app.websocket("/ws/pose")
 async def pose_ws(ws: WebSocket):
     await ws.accept()
 
-    global last_feedback_time, last_sent_feedback
-
     print("WebSocket connected")
+
+    # Per-connection state
+    last_feedback_time = 0
+    last_sent_feedback = None
+    technique_instance = None
+    current_tech_id = None
 
     try:
         while True:
             data = await ws.receive_json()
 
-            pose = PoseFrame(**data)
+            tech_id = data.get("technique_id")
 
-            # --------------------------------------------------
-            # Basic pose validation
-            # --------------------------------------------------
+            if not tech_id:
+                await ws.send_json({
+                    "feedback": "No technique selected"
+                })
+                continue
+
+            if tech_id not in TECHNIQUE_REGISTRY:
+                await ws.send_json({
+                    "feedback": "Unknown technique"
+                })
+                continue
+
+            # ------------------------------------------
+            # Load technique engine dynamically
+            # ------------------------------------------
+
+            if technique_instance is None or current_tech_id != tech_id:
+                technique_instance = TECHNIQUE_REGISTRY[tech_id]()
+                current_tech_id = tech_id
+                print(f"Loaded technique: {tech_id}")
+
+            # ------------------------------------------
+            # Pose Parsing
+            # ------------------------------------------
+
+            pose = PoseFrame(**data)
 
             if len(pose.landmarks) < 10:
                 await ws.send_json({
@@ -96,18 +117,18 @@ async def pose_ws(ws: WebSocket):
                 })
                 continue
 
-            # --------------------------------------------------
+            # ------------------------------------------
             # Feature Extraction
-            # --------------------------------------------------
+            # ------------------------------------------
 
-            features = extract_front_kick_features(pose)
+            features = technique_instance.extract_features(pose)
 
-            # --------------------------------------------------
+            # ------------------------------------------
             # Safety Check
-            # --------------------------------------------------
+            # ------------------------------------------
 
             safety = safety_override(
-                state_machine.current_step,
+                technique_instance.state_machine.current_step,
                 features
             )
 
@@ -117,30 +138,28 @@ async def pose_ws(ws: WebSocket):
                 })
                 continue
 
-            # --------------------------------------------------
+            # ------------------------------------------
             # Rule Evaluation
-            # --------------------------------------------------
+            # ------------------------------------------
 
-            rule_result = evaluate_step(
-                state_machine.current_step,
-                features
-            )
+            rule_result = technique_instance.evaluate_rules(features)
 
             features["rule"] = rule_result
-            state_machine.update(features)
 
-            # --------------------------------------------------
+            technique_instance.update_state(features)
+
+            # ------------------------------------------
             # Agent Processing
-            # --------------------------------------------------
+            # ------------------------------------------
 
             agent_output = await orchestrator.process(
                 features,
                 rule_result
             )
 
-            # --------------------------------------------------
+            # ------------------------------------------
             # Build Response
-            # --------------------------------------------------
+            # ------------------------------------------
 
             now = time.time()
             payload = {}
@@ -161,15 +180,16 @@ async def pose_ws(ws: WebSocket):
                 last_feedback_time = now
                 last_sent_feedback = new_feedback
 
-            # Attach progress data
+            # Attach additional agent data
             payload["progress"] = agent_output.get("progress")
             payload["analysis"] = agent_output.get("analysis")
             payload["fatigue"] = agent_output.get("fatigue")
             payload["difficulty"] = agent_output.get("difficulty")
+            payload["plan"] = agent_output.get("plan")
 
-            # --------------------------------------------------
-            # Send Safely
-            # --------------------------------------------------
+            # ------------------------------------------
+            # Safe Send
+            # ------------------------------------------
 
             try:
                 await ws.send_json(payload)

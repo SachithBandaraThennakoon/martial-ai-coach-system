@@ -20,3 +20,15 @@ uvicorn main:app --reload --ws-ping-interval 25 --ws-ping-timeout 60
 pip install soundfile
 
 
+///////////////////////////////add////////////////////////////////////////////////
+To add new move:
+Create:
+  features/roundhouse_features.py
+  rules/roundhouse_rules.py
+  engine/roundhouse_state_machine.py
+  techniques/roundhouse_kick.py
+
+Add to registry:
+  "roundhouse_kick": RoundhouseTechnique
+
+No change in main.py.
